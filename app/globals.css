@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #f7f7f5;
+  --color-card: #ffffff;
+  --color-ink: #1a1a18;
+  --color-muted: #6b6b66;
+  --color-line: #e4e4e0;
+  --color-accent: #c8613a;
+  --color-accent-soft: #fbeee8;
+  --color-ok: #3f7d5c;
+  --color-ok-soft: #e8f2ec;
+  --color-warn: #b8862b;
+  --color-warn-soft: #fbf3e2;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter,
+    Roboto, sans-serif;
+}
+
+/* thin scrollbars in note panes */
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #dcdad6;
+  border-radius: 99px;
+}
