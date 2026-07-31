@@ -69,16 +69,32 @@ You should see **Success. No rows returned.**
 
 ## Step 4 · Get your API keys
 
-1. Left sidebar → **Project Settings** (gear icon) → **API**
-2. You need two values:
-   - **Project URL** — looks like `https://abcdefghijk.supabase.co`
-   - **anon public** key — a long string starting `eyJ...`
+Supabase split these across two pages in the 2026 dashboard redesign.
 
-Leave this tab open.
+**The Project URL** — Settings → **Data API** (under the Integrations heading).
+It's at the top, labelled "Project URL", and looks like:
 
-> The `anon` key is *designed* to be public — it's in your browser bundle. It's only
-> safe because of the RLS policies you just created. Never copy the `service_role`
-> key into this app; that one bypasses RLS entirely.
+```
+https://abcdefghijk.supabase.co
+```
+
+> Shortcut: it's also visible in your browser address bar. If you're on
+> `.../dashboard/project/abcdefghijk/...` then your URL is
+> `https://abcdefghijk.supabase.co`.
+
+**The anon key** — Settings → **API Keys** → click the
+**"Legacy anon, service_role API keys"** tab → copy the `anon` `public` value
+(a long string starting `eyJ...`).
+
+> **Use the legacy anon key, not the new `sb_publishable_...` one.** The new format
+> only works on recent `@supabase/supabase-js` versions and isn't worth debugging on
+> day one. Migrating to publishable keys later is a good small task — key rotation
+> strategy is a fair senior-level interview question.
+
+> Neither value is a secret. The URL is public, and the anon key is *designed* to ship
+> in your browser bundle — it's safe only because of the RLS policies from Step 3.
+> The keys under **Secret keys** / `service_role` bypass RLS entirely. Never put those
+> in this app.
 
 ---
 
