@@ -12,6 +12,13 @@ type CookieToSet = {
   options?: CookieOptions;
 };
 
+/**
+ * Supabase client for server components and server actions.
+ *
+ * Note: this app runs in single-user mode — there are no Supabase accounts.
+ * Access is controlled by the passcode gate in middleware.ts, and every row
+ * belongs to SINGLE_USER_ID. See lib/single-user.ts.
+ */
 export async function createClient() {
   const cookieStore = await cookies();
 
@@ -29,20 +36,10 @@ export async function createClient() {
               cookieStore.set(name, value, options);
             });
           } catch {
-            // Called from a Server Component — safe to ignore,
-            // middleware refreshes the session.
+            // Called from a Server Component — safe to ignore.
           }
         },
       },
     }
   );
-}
-
-/** Returns the signed-in user, or null. */
-export async function getUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
 }

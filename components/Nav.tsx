@@ -35,6 +35,7 @@ export default function Nav() {
           </Link>
         );
       })}
+
       <form action={signOut} className="ml-auto">
         <button className="px-3 py-2 text-[12px] text-[#6b6b66] hover:text-[#1a1a18]">
           Sign out

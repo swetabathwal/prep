@@ -120,19 +120,94 @@ Save and close.
 
 ---
 
-## Step 6 · Turn on email sign-in
+## Step 5b · Only if you ran `single-user.sql`
+
+If you already ran `supabase/single-user.sql` at some point, run
+`supabase/restore-auth.sql` now to put per-user accounts back.
+
+⚠️ It **deletes** rows owned by the single-user placeholder id, because they point at
+a user that doesn't exist. If you'd already logged real progress, export it first:
+Table Editor → table → Export → CSV.
+
+If you only ever ran `schema.sql`, skip this step.
+
+---
+
+## Step 6 · Turn on email + password sign-in
 
 In Supabase:
 
 1. **Authentication** → **Sign In / Providers** → **Email**
    - Enable email provider: **ON**
-   - Confirm email: **ON**
+   - **Confirm email: OFF** ⚠️
    - Save
+
+   > **"Confirm email: OFF" is the whole simplification.** With it on, creating an
+   > account sends a confirmation email, and you can't sign in until you click the
+   > link — which drags back in email templates, redirect URLs and the token flow
+   > that broke last time. With it off, "Create account" signs you straight in and
+   > **no email is ever sent**. Nothing in the email pipeline can fail because there
+   > is no email pipeline.
+   >
+   > The trade-off: nobody verifies the address is real. For a personal tool that
+   > doesn't matter. For a product it would — you'd want confirmation back on.
 
 2. **Authentication** → **URL Configuration**
    - **Site URL**: `http://localhost:3000`
-   - **Redirect URLs** → Add URL: `http://localhost:3000/auth/callback`
    - Save
+
+   (No redirect URLs needed — password sign-in never leaves your site.)
+
+---
+
+## ~~Step 6b · Email templates~~ — not needed with password auth
+
+<details>
+<summary>Only relevant if you switch back to magic links later</summary>
+
+**Skip this and you get an infinite login loop** — click the link, land back on the
+login page, forever.
+
+Supabase's default email template uses the **implicit flow**: it returns your session
+in the URL *hash* (`#access_token=...`). Browsers never send the fragment to the
+server, so a server-rendered app physically cannot read it. You need the **token_hash
+flow** instead.
+
+Go to **Authentication** → **Emails** (or **Email Templates**).
+
+**Template: "Confirm signup"** — replace the body with:
+
+```html
+<h2>Confirm your signup</h2>
+<p>Click below to sign in to Prep OS:</p>
+<p>
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">
+    Sign in
+  </a>
+</p>
+```
+
+**Template: "Magic Link"** — replace the body with:
+
+```html
+<h2>Sign in to Prep OS</h2>
+<p>
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">
+    Sign in
+  </a>
+</p>
+```
+
+Save both.
+
+> You need **both**: your very first sign-in sends "Confirm signup" (because email
+> confirmation is on), every one after that sends "Magic Link".
+
+> `{{ .SiteURL }}` resolves to whatever you set in URL Configuration. That's why
+> Step 10 matters — after deploying, the Site URL must point at your Vercel domain
+> or your production emails will link back to localhost.
+
+</details>
 
 ---
 
@@ -144,7 +219,10 @@ npm run dev
 
 Open **http://localhost:3000**
 
-You'll be redirected to `/login`. Enter your email → check your inbox → click the link.
+You'll be redirected to `/login`. Click **Create account**, enter an email and a
+password (6+ characters), submit. You're straight in — no email, no waiting.
+
+Next time, use **Sign in** with the same details.
 
 You should land on the dashboard with 0% readiness. **Tick one checkbox on the Roadmap
 page and reload** — if it's still ticked, your database is wired up correctly.
@@ -260,9 +338,25 @@ Vercel redeploys automatically in about a minute.
 
 # Troubleshooting
 
+**"Email not confirmed" when signing in**
+Confirm email is still ON. Turn it off (Step 6), then delete the half-created user:
+Supabase → **Authentication → Users** → find your email → delete → sign up again.
+
+**"Invalid login credentials"**
+Either the password is wrong, or the account doesn't exist yet — use **Create
+account** the first time. Check Supabase → **Authentication → Users** to see whether
+your email is actually there.
+
 **Redirected to /login in a loop**
-Site URL and redirect URL in Supabase don't exactly match `NEXT_PUBLIC_SITE_URL`.
-Check protocol (`https` not `http`) and no trailing slash on either.
+1. Confirm a user row exists under **Authentication → Users**.
+2. On Vercel: did you **redeploy** after adding env vars? They only apply to a new build.
+3. Check the two `NEXT_PUBLIC_SUPABASE_*` values match the project you're looking at.
+4. Supabase → **Authentication → Logs** shows every auth attempt and why it failed.
+
+**"Not signed in" thrown from a server action**
+The session cookie expired and middleware didn't refresh it. Sign out and back in. If
+it recurs, make sure you didn't delete the `supabase.auth.getUser()` call in
+`middleware.ts` — that call is what refreshes the cookie.
 
 **Checkbox ticks, then reverts on reload**
 The write is being rejected by RLS. Go to Supabase → **Database** → **Policies** and

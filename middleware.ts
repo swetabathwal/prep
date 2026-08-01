@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refreshes the session cookie. Do not remove — without this call the
-  // session silently expires and the user gets bounced to /login.
+  // session silently expires and you get bounced to /login.
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -45,12 +45,14 @@ export async function middleware(request: NextRequest) {
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = path === "/" ? "" : `?next=${encodeURIComponent(path)}`;
     return NextResponse.redirect(url);
   }
 
   if (user && path.startsWith("/login")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 
