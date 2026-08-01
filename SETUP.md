@@ -354,9 +354,14 @@ your email is actually there.
 4. Supabase → **Authentication → Logs** shows every auth attempt and why it failed.
 
 **"Not signed in" thrown from a server action**
-The session cookie expired and middleware didn't refresh it. Sign out and back in. If
+The session cookie expired and the proxy didn't refresh it. Sign out and back in. If
 it recurs, make sure you didn't delete the `supabase.auth.getUser()` call in
-`middleware.ts` — that call is what refreshes the cookie.
+`proxy.ts` — that call is what refreshes the cookie.
+
+**⚠ The "middleware" file convention is deprecated**
+Next 16 renamed `middleware.ts` to `proxy.ts` and the exported function from
+`middleware` to `proxy`. This project already uses `proxy.ts`. If you still have a
+`middleware.ts` lying around, delete it — otherwise both run.
 
 **Checkbox ticks, then reverts on reload**
 The write is being rejected by RLS. Go to Supabase → **Database** → **Policies** and

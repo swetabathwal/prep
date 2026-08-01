@@ -159,7 +159,9 @@ lib/
   supabase/             browser + server clients
 supabase/
   schema.sql            tables, RLS policies, triggers
-middleware.ts           session refresh + route protection
+  restore-auth.sql      undo single-user mode
+proxy.ts                session refresh + route protection
+                        (was middleware.ts — renamed in Next 16)
 ```
 
 ---
