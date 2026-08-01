@@ -12,6 +12,10 @@ interface Note {
   updated_at: string;
 }
 
+/** Long notes get clamped in the list with a fade + Expand affordance. */
+export const isLong = (body: string) =>
+  body.length > 420 || body.split("\n").length > 10;
+
 /**
  * A note button that opens a side drawer. Attach it to anything —
  * a DSA problem, a roadmap item, a system design problem, a project milestone.
@@ -35,6 +39,7 @@ export default function NoteDrawer({
   const [draft, setDraft] = useState("");
   const [title, setTitle] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Note | null>(null);
   const [pending, start] = useTransition();
 
   useEffect(() => {
@@ -54,10 +59,23 @@ export default function NoteDrawer({
   }, [open, scope, refKey]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // close the expanded reader first, then the drawer
+      if (expanded) setExpanded(null);
+      else setOpen(false);
+    };
     if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, expanded]);
+
+  // keep the expanded note in sync after an edit/delete
+  useEffect(() => {
+    if (!expanded) return;
+    const fresh = notes.find((x) => x.id === expanded.id);
+    if (!fresh) setExpanded(null);
+    else if (fresh !== expanded) setExpanded(fresh);
+  }, [notes, expanded]);
 
   function reset() {
     setDraft("");
@@ -177,19 +195,54 @@ export default function NoteDrawer({
                   <i>why you got stuck</i> — not the solution.
                 </p>
               )}
-              {notes.map((note) => (
+              {notes.map((note) => {
+                const long = isLong(note.body);
+                return (
                 <article
                   key={note.id}
                   className="border border-[#e4e4e0] rounded-lg p-3 bg-[#fcfcfa]"
                 >
-                  {note.title && (
-                    <h4 className="text-[13px] font-semibold mb-1">{note.title}</h4>
-                  )}
-                  <pre className="text-[12.5px] whitespace-pre-wrap font-mono leading-relaxed">
+                  <div className="flex items-start gap-2">
+                    {note.title && (
+                      <h4 className="text-[13px] font-semibold mb-1 flex-1 min-w-0">
+                        {note.title}
+                      </h4>
+                    )}
+                    <button
+                      onClick={() => setExpanded(note)}
+                      title="Expand note"
+                      aria-label="Expand note"
+                      className="ml-auto shrink-0 text-[11px] px-1.5 py-0.5 rounded border border-[#e4e4e0] text-[#6b6b66] hover:border-[#c8613a] hover:text-[#c8613a]"
+                    >
+                      ⤢
+                    </button>
+                  </div>
+                  <pre
+                    onDoubleClick={() => setExpanded(note)}
+                    style={
+                      long
+                        ? {
+                            maskImage:
+                              "linear-gradient(to bottom, black 75%, transparent)",
+                            WebkitMaskImage:
+                              "linear-gradient(to bottom, black 75%, transparent)",
+                          }
+                        : undefined
+                    }
+                    className={`text-[12.5px] whitespace-pre-wrap font-mono leading-relaxed cursor-zoom-in ${
+                      long ? "max-h-56 overflow-hidden" : ""
+                    }`}
+                  >
                     {note.body}
                   </pre>
                   <div className="flex gap-3 mt-2 text-[11px] text-[#6b6b66]">
                     <span>{new Date(note.updated_at).toLocaleDateString()}</span>
+                    <button
+                      className="hover:text-[#c8613a]"
+                      onClick={() => setExpanded(note)}
+                    >
+                      Expand
+                    </button>
                     <button
                       className="hover:text-[#c8613a]"
                       onClick={() => {
@@ -208,8 +261,74 @@ export default function NoteDrawer({
                     </button>
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {expanded && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 sm:p-8"
+          onClick={() => setExpanded(null)}
+        >
+          <div
+            className="w-full max-w-3xl max-h-full bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="px-5 py-3 border-b border-[#e4e4e0] flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] uppercase tracking-wider text-[#6b6b66]">
+                  {scope} · {label}
+                </div>
+                <h3 className="text-[15px] font-semibold">
+                  {expanded.title || "Untitled note"}
+                </h3>
+              </div>
+              <span className="text-[11px] text-[#6b6b66] mt-1">
+                {new Date(expanded.updated_at).toLocaleDateString()}
+              </span>
+              <button
+                onClick={() => setExpanded(null)}
+                title="Close (Esc)"
+                className="text-[#6b6b66] hover:text-black text-lg leading-none px-1"
+              >
+                ✕
+              </button>
+            </header>
+
+            <div className="flex-1 overflow-y-auto scroll-thin px-6 py-5">
+              <pre className="text-[13.5px] whitespace-pre-wrap font-mono leading-[1.7]">
+                {expanded.body}
+              </pre>
+            </div>
+
+            <footer className="px-5 py-3 border-t border-[#e4e4e0] flex gap-2">
+              <button
+                onClick={() => {
+                  setEditing(expanded.id);
+                  setTitle(expanded.title ?? "");
+                  setDraft(expanded.body);
+                  setExpanded(null);
+                }}
+                className="border border-[#e4e4e0] rounded-lg px-3 py-1.5 text-[13px] hover:bg-[#f4f4f1]"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => navigator.clipboard?.writeText(expanded.body)}
+                className="border border-[#e4e4e0] rounded-lg px-3 py-1.5 text-[13px] hover:bg-[#f4f4f1]"
+              >
+                Copy
+              </button>
+              <button
+                onClick={() => setExpanded(null)}
+                className="ml-auto bg-[#1a1a18] text-white rounded-lg px-4 py-1.5 text-[13px] font-medium hover:bg-black"
+              >
+                Close
+              </button>
+            </footer>
           </div>
         </div>
       )}

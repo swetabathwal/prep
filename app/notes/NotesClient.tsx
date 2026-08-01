@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Card, H2, Sub, Badge } from "@/components/ui";
 import { saveNote, deleteNote, togglePin } from "@/app/actions";
 import type { NoteRow } from "@/lib/state";
+import { isLong } from "@/components/NoteDrawer";
 
 const SCOPES = ["all", "journal", "problem", "item", "fsd", "project"] as const;
 const SCOPE_LABEL: Record<string, string> = {
@@ -25,7 +26,20 @@ export default function NotesClient({
   const [scope, setScope] = useState<string>("all");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  const expanded = useMemo(
+    () => notes.find((n) => n.id === expandedId) ?? null,
+    [notes, expandedId]
+  );
+
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setExpandedId(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -145,6 +159,13 @@ export default function NotesClient({
                 <div className="flex gap-2.5 text-[11px] text-[#6b6b66] shrink-0">
                   <span>{new Date(n.updated_at).toLocaleDateString()}</span>
                   <button
+                    className="hover:text-[#c8613a]"
+                    title="Expand note"
+                    onClick={() => setExpandedId(n.id)}
+                  >
+                    Expand
+                  </button>
+                  <button
                     className="hover:text-[#b8862b]"
                     onClick={() => start(() => togglePin(n.id, !n.pinned))}
                   >
@@ -158,13 +179,85 @@ export default function NotesClient({
                   </button>
                 </div>
               </div>
-              <pre className="text-[12.5px] whitespace-pre-wrap font-mono leading-relaxed">
+              <pre
+                onDoubleClick={() => setExpandedId(n.id)}
+                style={
+                  isLong(n.body)
+                    ? {
+                        maskImage:
+                          "linear-gradient(to bottom, black 78%, transparent)",
+                        WebkitMaskImage:
+                          "linear-gradient(to bottom, black 78%, transparent)",
+                      }
+                    : undefined
+                }
+                className={`text-[12.5px] whitespace-pre-wrap font-mono leading-relaxed cursor-zoom-in ${
+                  isLong(n.body) ? "max-h-64 overflow-hidden" : ""
+                }`}
+              >
                 {n.body}
               </pre>
             </Card>
           );
         })}
       </div>
+
+      {expanded && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 sm:p-8"
+          onClick={() => setExpandedId(null)}
+        >
+          <div
+            className="w-full max-w-3xl max-h-full bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="px-5 py-3 border-b border-[#e4e4e0] flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] uppercase tracking-wider text-[#6b6b66]">
+                  {SCOPE_LABEL[expanded.scope] ?? expanded.scope}
+                  {expanded.ref && labels[`${expanded.scope}:${expanded.ref}`]
+                    ? ` · ${labels[`${expanded.scope}:${expanded.ref}`]}`
+                    : ""}
+                </div>
+                <h3 className="text-[15px] font-semibold">
+                  {expanded.title || "Untitled note"}
+                </h3>
+              </div>
+              <span className="text-[11px] text-[#6b6b66] mt-1">
+                {new Date(expanded.updated_at).toLocaleDateString()}
+              </span>
+              <button
+                onClick={() => setExpandedId(null)}
+                title="Close (Esc)"
+                className="text-[#6b6b66] hover:text-black text-lg leading-none px-1"
+              >
+                ✕
+              </button>
+            </header>
+
+            <div className="flex-1 overflow-y-auto scroll-thin px-6 py-5">
+              <pre className="text-[13.5px] whitespace-pre-wrap font-mono leading-[1.7]">
+                {expanded.body}
+              </pre>
+            </div>
+
+            <footer className="px-5 py-3 border-t border-[#e4e4e0] flex gap-2">
+              <button
+                onClick={() => navigator.clipboard?.writeText(expanded.body)}
+                className="border border-[#e4e4e0] rounded-lg px-3 py-1.5 text-[13px] hover:bg-[#f4f4f1]"
+              >
+                Copy
+              </button>
+              <button
+                onClick={() => setExpandedId(null)}
+                className="ml-auto bg-[#1a1a18] text-white rounded-lg px-4 py-1.5 text-[13px] font-medium hover:bg-black"
+              >
+                Close
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
     </>
   );
 }
